@@ -193,6 +193,10 @@ public class CWebViewPlugin {
                 } else {
                     UnityPlayer.UnitySendMessage(gameObject, "SetKeyboardVisible", "false");
                 }
+
+                FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) mWebView.getLayoutParams();
+                layoutParams.height = (r.bottom - r.top);
+                mWebView.requestLayout();
             }
         });
     }
