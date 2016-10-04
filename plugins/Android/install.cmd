@@ -25,15 +25,25 @@ set UNITYLIBS=%UNITY_HOME%\Editor\Data\PlaybackEngines\AndroidPlayer\Variations\
 set DSTDIR=..\..\build\Packager\Assets\Plugins\Android
 set ANT_OPTS=-Dfile.encoding=UTF8
 call android update project -t android-19 -p .
+if errorlevel 1 goto error
 mkdir libs
 copy "%UNITYLIBS%\*.*" libs
 call ant "-Djava.compilerargs=-Xlint:deprecation" release
+if errorlevel 1 goto error
 mkdir %DSTDIR%
 copy bin\classes.jar %DSTDIR%\WebViewPlugin.jar
 call ant clean
+if errorlevel 1 goto error
 rmdir /s /q libs
 rmdir /s /q res
 del /q proguard-project.txt
+
+echo BUILD SUCCEEDED!
+goto end
+
+:error
+echo BUILD FAILED!
+goto end
 
 :end
 endlocal
