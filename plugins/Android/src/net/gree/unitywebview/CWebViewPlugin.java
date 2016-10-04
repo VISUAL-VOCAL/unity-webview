@@ -34,6 +34,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
+import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -72,6 +73,7 @@ public class CWebViewPlugin {
     private CWebViewPluginInterface mWebViewPlugin;
     private boolean canGoBack;
     private boolean canGoForward;
+    private int oldUsableHeight = -1;
 
     public CWebViewPlugin() {
     }
@@ -80,7 +82,7 @@ public class CWebViewPlugin {
         return mWebView != null;
     }
 
-    public void Init(final String gameObject, final boolean transparent) {
+    public void Init(final String gameObject, final boolean transparent, final boolean softInputAdjustResize) {
         final CWebViewPlugin self = this;
         final Activity a = UnityPlayer.currentActivity;
         a.runOnUiThread(new Runnable() {public void run() {
@@ -183,20 +185,32 @@ public class CWebViewPlugin {
                 android.graphics.Rect r = new android.graphics.Rect();
                 //r will be populated with the coordinates of your view that area still visible.
                 activityRootView.getWindowVisibleDisplayFrame(r);
-                android.view.Display display = a.getWindowManager().getDefaultDisplay();
-                Point size = new Point();
-                display.getSize(size);
-                int heightDiff = activityRootView.getRootView().getHeight() - (r.bottom - r.top);
-                //System.out.print(String.format("[NativeWebview] %d, %d\n", size.y, heightDiff));
-                if (heightDiff > size.y / 3) { // assume that this means that the keyboard is on
-                    UnityPlayer.UnitySendMessage(gameObject, "SetKeyboardVisible", "true");
-                } else {
-                    UnityPlayer.UnitySendMessage(gameObject, "SetKeyboardVisible", "false");
-                }
+                int newUsableHeight = (r.bottom - r.top);
+                if (newUsableHeight != oldUsableHeight)
+                {
+                    oldUsableHeight = newUsableHeight;
 
-                FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) mWebView.getLayoutParams();
-                layoutParams.height = (r.bottom - r.top);
-                mWebView.requestLayout();
+                    android.view.Display display = a.getWindowManager().getDefaultDisplay();
+                    Point size = new Point();
+                    display.getSize(size);
+                    int heightDiff = activityRootView.getRootView().getHeight() - newUsableHeight;
+                    //System.out.print(String.format("[NativeWebview] %d, %d\n", size.y, heightDiff));
+                    if (heightDiff > size.y / 3) { // assume that this means that the keyboard is on
+                        UnityPlayer.UnitySendMessage(gameObject, "SetKeyboardVisible", "true");
+                    } else {
+                        UnityPlayer.UnitySendMessage(gameObject, "SetKeyboardVisible", "false");
+                    }
+
+                    // android:windowSoftInputMode="adjustResize" in AndroidManifest.xml doesn't seem to work for Unity apps.
+                    // Perhaps because Unity apps run fullscreen: https://code.google.com/p/android/issues/detail?id=5497
+                    // Work around this by forcing the layout to update here.
+                    if (softInputAdjustResize)
+                    {
+                        FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) mWebView.getLayoutParams();
+                        layoutParams.height = newUsableHeight;
+                        mWebView.requestLayout();
+                    }
+                }
             }
         });
     }
