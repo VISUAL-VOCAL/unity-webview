@@ -4,4 +4,8 @@ local.properties
 obj
 proguard.cfg
 .gradle
-gradle_build
+gradle_build/libs
+gradle_build/src
+.idea
+build
+*.iml

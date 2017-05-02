@@ -4,6 +4,7 @@ import com.unity3d.player.*;
 import android.content.ContextWrapper;
 import android.view.SurfaceView;
 import android.view.View;
+import com.google.unity.GoogleUnityActivity;
 
 public class CUnityPlayer
     extends UnityPlayer
