@@ -21,6 +21,8 @@ below:
 
 ### OS X (Editor)
 
+#### App Transport Security
+
 Since Unity 5.3.0, Unity.app is built with ATS (App Transport
 Security) enabled and non-secured connection (HTTP) is not
 permitted. If you want to open `http://foo/bar.html` with this plugin
@@ -50,10 +52,18 @@ or invoke the following from your terminal,
 /usr/libexec/PlistBuddy -c "Add NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" /Applications/Unity/Unity.app/Contents/Info.plist
 ```
 
-#### References
+##### References
 
 * https://github.com/gree/unity-webview/issues/64
 * https://onevcat.zendesk.com/hc/en-us/articles/215527307-I-cannot-open-the-web-page-in-Unity-Editor-
+
+#### WebViewSeparated.bundle
+
+WebViewSeparated.bundle is a variation of WebView.bundle. It is based
+on https://github.com/gree/unity-webview/pull/161 . As noted in the
+pull-request, it shows a separate window and allows a developer to
+utilize the Safari debugger. For enabling it, please define
+`WEBVIEW_SEPARATED`.
 
 ### iOS
 
@@ -69,6 +79,8 @@ default. For enabling it, please set enableWKWebView as below:
 
 ### Android
 
+*NOTE: the following steps are now performed by Assets/Plugins/Android/Editor/UnityWebViewPostprocessBuild.cs.*
+
 Once you built an apk, please copy
 `sample/Temp/StatingArea/AndroidManifest-main.xml` to
 `sample/Assets/Plugins/Android/AndroidManifest.xml`, edit the latter to add
@@ -77,6 +89,14 @@ android:name="com.unity3d.player.UnityPlayerActivity" ...`, and
 rebuilt the apk. Although some old/buggy devices may not work well
 with `android:hardwareAccelerated="true"`, the WebView runs very
 smoothly with this setting.
+
+For Unity 5.6 or newer, you also need to modify `android:name` from
+`com.unity3d.player.UnityPlayerActivity` to
+`net.gree.unitywebview.CUnityPlayerActivity`. This custom activity
+implementation will adjust Unity's SurfaceView z order. Please refer
+`plugins/Android/src/net/gree/unitywebview/CUnityPlayerActivity.java`
+and `plugins/Android/src/net/gree/unitywebview/CUnityPlayer.java` if
+you already have your own acitivity implementation.
 
 ### Web Player
 

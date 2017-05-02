@@ -28,19 +28,23 @@ import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.net.Uri;
 import android.os.Build;
-import android.os.SystemClock;
-import android.util.Log;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Hashtable;
+
 import com.unity3d.player.UnityPlayer;
 
 class CWebViewPluginInterface {
@@ -73,6 +77,7 @@ public class CWebViewPlugin {
     private CWebViewPluginInterface mWebViewPlugin;
     private boolean canGoBack;
     private boolean canGoForward;
+    private Hashtable<String, String> mCustomHeaders;
     private int oldUsableHeight = -1;
 
     public CWebViewPlugin() {
@@ -89,6 +94,8 @@ public class CWebViewPlugin {
             if (mWebView != null) {
                 return;
             }
+            mCustomHeaders = new Hashtable<String, String>();
+            
             final WebView webView = new WebView(a);
             webView.setVisibility(View.GONE);
             webView.setFocusable(true);
@@ -126,7 +133,41 @@ public class CWebViewPlugin {
                 }
 
                 @Override
+                public void onLoadResource(WebView view, String url) {
+                    canGoBack = webView.canGoBack();
+                    canGoForward = webView.canGoForward();
+                }
+
+                @Override
+                public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
+                    if (mCustomHeaders == null || mCustomHeaders.isEmpty()) {
+                        return super.shouldInterceptRequest(view, url);
+                    }
+
+                    try {
+                        HttpURLConnection urlCon = (HttpURLConnection) (new URL(url)).openConnection();
+
+                        for (HashMap.Entry<String, String> entry: mCustomHeaders.entrySet()) {
+                            urlCon.setRequestProperty(entry.getKey(), entry.getValue());
+                        }
+
+                        urlCon.connect();
+
+                        return new WebResourceResponse(
+                            urlCon.getContentType(),
+                            urlCon.getContentEncoding(),
+                            urlCon.getInputStream()
+                        );
+
+                    } catch (Exception e) {
+                        return super.shouldInterceptRequest(view, url);
+                    }
+                }
+
+                @Override
                 public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                    canGoBack = webView.canGoBack();
+                    canGoForward = webView.canGoForward();
                     if (url.startsWith("http://") || url.startsWith("https://")
                         || url.startsWith("file://") || url.startsWith("javascript:")) {
                         // Let webview handle the URL
@@ -191,11 +232,18 @@ public class CWebViewPlugin {
                     oldUsableHeight = newUsableHeight;
 
                     android.view.Display display = a.getWindowManager().getDefaultDisplay();
-                    Point size = new Point();
-                    display.getSize(size);
-                    int heightDiff = activityRootView.getRootView().getHeight() - newUsableHeight;
-                    //System.out.print(String.format("[NativeWebview] %d, %d\n", size.y, heightDiff));
-                    if (heightDiff > size.y / 3) { // assume that this means that the keyboard is on
+                    // cf. http://stackoverflow.com/questions/9654016/getsize-giving-me-errors/10564149#10564149
+                    int h = 0;
+                    try {
+                        Point size = new Point();
+                        display.getSize(size);
+                        h = size.y;
+                    } catch (java.lang.NoSuchMethodError err) {
+                        h = display.getHeight();
+                    }
+                    int heightDiff = activityRootView.getRootView().getHeight() - (r.bottom - r.top);
+                    //System.out.print(String.format("[NativeWebview] %d, %d\n", h, heightDiff));
+                    if (heightDiff > h / 3) { // assume that this means that the keyboard is on
                         UnityPlayer.UnitySendMessage(gameObject, "SetKeyboardVisible", "true");
                     } else {
                         UnityPlayer.UnitySendMessage(gameObject, "SetKeyboardVisible", "false");
@@ -221,7 +269,9 @@ public class CWebViewPlugin {
             if (mWebView == null) {
                 return;
             }
+            mWebView.stopLoading();
             layout.removeView(mWebView);
+            mWebView.destroy();
             mWebView = null;
         }});
     }
@@ -232,7 +282,23 @@ public class CWebViewPlugin {
             if (mWebView == null) {
                 return;
             }
-            mWebView.loadUrl(url);
+            if (mCustomHeaders != null &&
+            		!mCustomHeaders.isEmpty()) {
+                mWebView.loadUrl(url, mCustomHeaders);
+            } else {
+                mWebView.loadUrl(url);;
+            }
+        }});
+    }
+
+    public void LoadHTML(final String html, final String baseURL)
+    {
+        final Activity a = UnityPlayer.currentActivity;
+        a.runOnUiThread(new Runnable() {public void run() {
+            if (mWebView == null) {
+                return;
+            }
+            mWebView.loadDataWithBaseURL(baseURL, html, "text/html", "UTF8", null);
         }});
     }
 
@@ -296,5 +362,45 @@ public class CWebViewPlugin {
                 mWebView.setVisibility(View.GONE);
             }
         }});
+    }
+
+    public void AddCustomHeader(final String headerKey, final String headerValue)
+    {
+        if (mCustomHeaders == null) {
+            return;
+        }
+        mCustomHeaders.put(headerKey, headerValue);
+    }
+
+    public String GetCustomHeaderValue(final String headerKey)
+    {
+        if (mCustomHeaders == null) {
+            return null;
+        }
+
+        if (!mCustomHeaders.containsKey(headerKey)) {
+            return null;
+        }
+        return this.mCustomHeaders.get(headerKey);
+    }
+
+    public void RemoveCustomHeader(final String headerKey)
+    {
+        if (mCustomHeaders == null) {
+            return;
+        }
+
+        if (this.mCustomHeaders.containsKey(headerKey)) {
+            this.mCustomHeaders.remove(headerKey);
+        }
+    }
+
+    public void ClearCustomHeader()
+    {
+        if (mCustomHeaders == null) {
+            return;
+        }
+
+        this.mCustomHeaders.clear();
     }
 }
