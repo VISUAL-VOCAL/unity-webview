@@ -24,14 +24,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-#if UNITY_EDITOR || UNITY_STANDALONE_OSX
+#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
 using System.IO;
 using System.Text.RegularExpressions;
 #endif
 
 using Callback = System.Action<string>;
 
-#if UNITY_EDITOR || UNITY_STANDALONE_OSX
+#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
 public class UnitySendMessageDispatcher
 {
     public static void Dispatch(string name, string method, string message)
@@ -49,8 +49,7 @@ public class WebViewObject : MonoBehaviour
     Callback onError;
     Callback onLoaded;
     bool visibility;
-#if UNITY_WEBPLAYER
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX
+#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
     IntPtr webView;
     Rect rect;
     Texture2D texture;
@@ -68,10 +67,14 @@ public class WebViewObject : MonoBehaviour
     {
         mIsKeyboardVisible = (pIsVisible == "true");
     }
+#else
+    IntPtr webView;
 #endif
-    
-    public bool IsKeyboardVisible {
-        get {
+
+    public bool IsKeyboardVisible
+    {
+        get
+        {
 #if !UNITY_EDITOR && UNITY_ANDROID
             return mIsKeyboardVisible;
 #elif !UNITY_EDITOR && UNITY_IPHONE
@@ -82,7 +85,65 @@ public class WebViewObject : MonoBehaviour
         }
     }
 
-#if UNITY_EDITOR || UNITY_STANDALONE_OSX
+#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
+#if WEBVIEW_SEPARATED
+    [DllImport("WebViewSeparated")]
+    private static extern string _CWebViewPlugin_GetAppPath();
+    [DllImport("WebViewSeparated")]
+    private static extern IntPtr _CWebViewPlugin_Init(
+        string gameObject, bool transparent, int width, int height, string ua, bool ineditor);
+    [DllImport("WebViewSeparated")]
+    private static extern int _CWebViewPlugin_Destroy(IntPtr instance);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_SetRect(
+        IntPtr instance, int width, int height);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_SetVisibility(
+        IntPtr instance, bool visibility);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_LoadURL(
+        IntPtr instance, string url);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_LoadHTML(
+        IntPtr instance, string html, string baseUrl);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_EvaluateJS(
+        IntPtr instance, string url);
+    [DllImport("WebViewSeparated")]
+    private static extern bool _CWebViewPlugin_CanGoBack(
+        IntPtr instance);
+    [DllImport("WebViewSeparated")]
+    private static extern bool _CWebViewPlugin_CanGoForward(
+        IntPtr instance);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_GoBack(
+        IntPtr instance);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_GoForward(
+        IntPtr instance);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_Update(IntPtr instance,
+        int x, int y, float deltaY, bool down, bool press, bool release,
+        bool keyPress, short keyCode, string keyChars);
+    [DllImport("WebViewSeparated")]
+    private static extern int _CWebViewPlugin_BitmapWidth(IntPtr instance);
+    [DllImport("WebViewSeparated")]
+    private static extern int _CWebViewPlugin_BitmapHeight(IntPtr instance);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_SetTextureId(IntPtr instance, int textureId);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_SetCurrentInstance(IntPtr instance);
+    [DllImport("WebViewSeparated")]
+    private static extern IntPtr GetRenderEventFunc();
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_AddCustomHeader(IntPtr instance, string headerKey, string headerValue);
+    [DllImport("WebViewSeparated")]
+    private static extern string _CWebViewPlugin_GetCustomHeaderValue(IntPtr instance, string headerKey);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_RemoveCustomHeader(IntPtr instance, string headerKey);
+    [DllImport("WebViewSeparated")]
+    private static extern void _CWebViewPlugin_ClearCustomHeader(IntPtr instance);
+#else
     [DllImport("WebView")]
     private static extern string _CWebViewPlugin_GetAppPath();
     [DllImport("WebView")]
@@ -99,6 +160,9 @@ public class WebViewObject : MonoBehaviour
     [DllImport("WebView")]
     private static extern void _CWebViewPlugin_LoadURL(
         IntPtr instance, string url);
+    [DllImport("WebView")]
+    private static extern void _CWebViewPlugin_LoadHTML(
+        IntPtr instance, string html, string baseUrl);
     [DllImport("WebView")]
     private static extern void _CWebViewPlugin_EvaluateJS(
         IntPtr instance, string url);
@@ -128,6 +192,15 @@ public class WebViewObject : MonoBehaviour
     private static extern void _CWebViewPlugin_SetCurrentInstance(IntPtr instance);
     [DllImport("WebView")]
     private static extern IntPtr GetRenderEventFunc();
+    [DllImport("WebView")]
+    private static extern void _CWebViewPlugin_AddCustomHeader(IntPtr instance, string headerKey, string headerValue);
+    [DllImport("WebView")]
+    private static extern string _CWebViewPlugin_GetCustomHeaderValue(IntPtr instance, string headerKey);
+    [DllImport("WebView")]
+    private static extern void _CWebViewPlugin_RemoveCustomHeader(IntPtr instance, string headerKey);
+    [DllImport("WebView")]
+    private static extern void _CWebViewPlugin_ClearCustomHeader(IntPtr instance);
+#endif
 #elif UNITY_IPHONE
     [DllImport("__Internal")]
     private static extern IntPtr _CWebViewPlugin_Init(string gameObject, bool transparent, bool enableWKWebView);
@@ -142,6 +215,9 @@ public class WebViewObject : MonoBehaviour
     [DllImport("__Internal")]
     private static extern void _CWebViewPlugin_LoadURL(
         IntPtr instance, string url);
+    [DllImport("__Internal")]
+    private static extern void _CWebViewPlugin_LoadHTML(
+        IntPtr instance, string html, string baseUrl);
     [DllImport("__Internal")]
     private static extern void _CWebViewPlugin_EvaluateJS(
         IntPtr instance, string url);
@@ -160,6 +236,14 @@ public class WebViewObject : MonoBehaviour
     [DllImport("__Internal")]
     private static extern void _CWebViewPlugin_SetFrame(
         IntPtr instance, int x , int y , int width , int height);
+    [DllImport("__Internal")]
+    private static extern void   _CWebViewPlugin_AddCustomHeader(IntPtr instance, string headerKey, string headerValue);
+    [DllImport("__Internal")]
+    private static extern string _CWebViewPlugin_GetCustomHeaderValue(IntPtr instance, string headerKey);
+    [DllImport("__Internal")]
+    private static extern void   _CWebViewPlugin_RemoveCustomHeader(IntPtr instance, string headerKey);
+    [DllImport("__Internal")]
+    private static extern void   _CWebViewPlugin_ClearCustomHeader(IntPtr instance);
 #endif
 
     public void Init(Callback cb = null, bool transparent = false, string ua = @"Mozilla/5.0 (iPhone; CPU iPhone OS 7_1_2 like Mac OS X) AppleWebKit/537.51.2 (KHTML, like Gecko) Version/7.0 Mobile/11D257 Safari/9537.53", Callback err = null, Callback ld = null, bool enableWKWebView = false)
@@ -169,7 +253,7 @@ public class WebViewObject : MonoBehaviour
         onLoaded = ld;
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.init", name);
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         {
             var uri = new Uri(_CWebViewPlugin_GetAppPath());
             var info = File.ReadAllText(uri.LocalPath + "Contents/Info.plist");
@@ -204,6 +288,8 @@ public class WebViewObject : MonoBehaviour
 #elif UNITY_ANDROID
         webView = new AndroidJavaObject("net.gree.unitywebview.CWebViewPlugin");
         webView.Call("Init", name, transparent);
+#else
+        Debug.LogError("Webview is not supported on this platform.");
 #endif
     }
 
@@ -211,7 +297,7 @@ public class WebViewObject : MonoBehaviour
     {
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.destroy", name);
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         if (webView == IntPtr.Zero)
             return;
         _CWebViewPlugin_Destroy(webView);
@@ -230,10 +316,10 @@ public class WebViewObject : MonoBehaviour
     }
 
     /** Use this function instead of SetMargins to easily set up a centered window */
-    public void SetCenterPositionWithScale(Vector2 center , Vector2 scale)
+    public void SetCenterPositionWithScale(Vector2 center, Vector2 scale)
     {
 #if UNITY_WEBPLAYER
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         rect.x = center.x + (Screen.width - scale.x)/2;
         rect.y = center.y + (Screen.height - scale.y)/2;
         rect.width = scale.x;
@@ -248,7 +334,7 @@ public class WebViewObject : MonoBehaviour
     {
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.setMargins", name, left, top, right, bottom);
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         if (webView == IntPtr.Zero)
             return;
         int width = Screen.width - (left + right);
@@ -270,7 +356,7 @@ public class WebViewObject : MonoBehaviour
     {
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.setVisibility", name, v);
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         if (webView == IntPtr.Zero)
             return;
         _CWebViewPlugin_SetVisibility(webView, v);
@@ -297,7 +383,7 @@ public class WebViewObject : MonoBehaviour
             return;
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.loadURL", name, url);
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX || UNITY_IPHONE
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
         _CWebViewPlugin_LoadURL(webView, url);
@@ -308,11 +394,30 @@ public class WebViewObject : MonoBehaviour
 #endif
     }
 
+    public void LoadHTML(string html, string baseUrl)
+    {
+        if (string.IsNullOrEmpty(html))
+            return;
+        if (string.IsNullOrEmpty(baseUrl))
+            baseUrl = "";
+#if UNITY_WEBPLAYER
+        //TODO: UNSUPPORTED
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
+        if (webView == IntPtr.Zero)
+            return;
+        _CWebViewPlugin_LoadHTML(webView, html, baseUrl);
+#elif UNITY_ANDROID
+        if (webView == null)
+            return;
+        webView.Call("LoadHTML", html, baseUrl);
+#endif
+    }
+
     public void EvaluateJS(string js)
     {
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.evaluateJS", name, js);
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX || UNITY_IPHONE
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
         _CWebViewPlugin_EvaluateJS(webView, js);
@@ -326,7 +431,7 @@ public class WebViewObject : MonoBehaviour
     public bool CanGoBack()
     {
 #if UNITY_WEBPLAYER
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX || UNITY_IPHONE
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return false;
         return _CWebViewPlugin_CanGoBack(webView);
@@ -334,13 +439,15 @@ public class WebViewObject : MonoBehaviour
         if (webView == null)
             return false;
         return webView.Get<bool>("canGoBack");
+#else
+        return false;
 #endif
     }
 
     public bool CanGoForward()
     {
 #if UNITY_WEBPLAYER
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX || UNITY_IPHONE
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return false;
         return _CWebViewPlugin_CanGoForward(webView);
@@ -348,13 +455,15 @@ public class WebViewObject : MonoBehaviour
         if (webView == null)
             return false;
         return webView.Get<bool>("canGoForward");
+#else
+        return false;
 #endif
     }
 
     public void GoBack()
     {
 #if UNITY_WEBPLAYER
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX || UNITY_IPHONE
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
         _CWebViewPlugin_GoBack(webView);
@@ -368,7 +477,7 @@ public class WebViewObject : MonoBehaviour
     public void GoForward()
     {
 #if UNITY_WEBPLAYER
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX || UNITY_IPHONE
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
         _CWebViewPlugin_GoForward(webView);
@@ -381,21 +490,24 @@ public class WebViewObject : MonoBehaviour
 
     public void CallOnError(string error)
     {
-        if (onError != null) {
+        if (onError != null)
+        {
             onError(error);
         }
     }
 
     public void CallOnLoaded(string url)
     {
-        if (onLoaded != null) {
+        if (onLoaded != null)
+        {
             onLoaded(url);
         }
     }
 
     public void CallFromJS(string message)
     {
-        if (onJS != null) {
+        if (onJS != null)
+        {
 #if !UNITY_ANDROID
             message = WWW.UnEscapeURL(message);
 #endif
@@ -403,8 +515,68 @@ public class WebViewObject : MonoBehaviour
         }
     }
 
+
+    public void AddCustomHeader(string headerKey, string headerValue)
+    {
+#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
+        if (webView == IntPtr.Zero)
+            return;
+
+        _CWebViewPlugin_AddCustomHeader(webView, headerKey, headerValue);
+#elif UNITY_ANDROID
+        if (webView == null)
+            return;
+        webView.Call("AddCustomHeader", headerKey, headerValue);
+#endif
+    }
+
+    public string GetCustomHeaderValue(string headerKey)
+    {
+#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
+        if (webView == IntPtr.Zero)
+          return null;
+        
+        return _CWebViewPlugin_GetCustomHeaderValue(webView, headerKey);  
+#elif UNITY_ANDROID
+        if (webView == null)
+            return null;
+        return webView.Call<string>("GetCustomHeaderValue", headerKey);
+#else
+        return null;
+#endif
+    }
+
+    public void RemoveCustomHeader(string headerKey)
+    {
+#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
+        if (webView == IntPtr.Zero)
+            return;
+
+        _CWebViewPlugin_RemoveCustomHeader(webView, headerKey);
+#elif UNITY_ANDROID
+        if (webView == null)
+            return;
+        webView.Call("RemoveCustomHeader", headerKey);
+#endif
+    }
+
+    public void ClearCustomHeader()
+    {
+#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
+        if (webView == IntPtr.Zero)
+            return;
+
+        _CWebViewPlugin_ClearCustomHeader(webView);
+#elif UNITY_ANDROID
+        if (webView == null)
+            return;
+        webView.Call("ClearCustomHeader");
+#endif
+    }
+
+
 #if UNITY_WEBPLAYER
-#elif UNITY_EDITOR || UNITY_STANDALONE_OSX
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
     void OnApplicationFocus(bool focus)
     {
         hasFocus = focus;
