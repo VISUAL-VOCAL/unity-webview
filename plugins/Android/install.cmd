@@ -1,32 +1,40 @@
-@echo off
+rem @echo off
 setlocal
 
-if not defined ANDROID_SDK (
+rem update these as appropriate
+set ANDROID_SDK=C:\Apps\android-sdk
+set ANT_HOME=c:\apps\apache-ant-1.10.1
+set UNITY_HOME=C:\Program Files\Unity
+set JDK_HOME=C:\Program Files\Java\jdk1.8.0_131
+
+if not exist "%ANDROID_SDK%" (
     echo Must set ANDROID_SDK environment variable to the Android SDK directory.
     goto end
 )
 
-if not defined ANT_HOME (
+if not exist "%ANT_HOME%" (
     echo Must set ANT_HOME environment variable to the Apache Ant directory.
     goto end
 )
 
-if not defined UNITY_HOME (
+if not exist "%UNITY_HOME%" (
     echo Must set UNITY_HOME environment variable to the Unity directory.
     goto end
 )
 
-set ANDROID_SDK=C:\Apps\android-sdk
-set ANT_HOME=c:\apps\apache-ant-1.9.7
+if not exist "%JDK_HOME%" (
+    echo Must set JDK_HOME environment variable to the Java Development Kit directory.
+    goto end
+)
 
-path=%path%;%ANT_HOME%\bin;%ANDROID_SDK%\tools
+path=%path%;%ANT_HOME%\bin;%ANDROID_SDK%\tools;%ANDROID_SDK%\tools\bin;%JDK_HOME%\bin
 
 set UNITYLIBS=%UNITY_HOME%\Editor\Data\PlaybackEngines\AndroidPlayer\Variations\mono\Release\Classes\
 set DSTDIR=..\..\build\Packager\Assets\Plugins\Android
 set ANT_OPTS=-Dfile.encoding=UTF8
-call android update project -t android-19 -p .
+call sdkmanager --update
 if errorlevel 1 goto error
-mkdir libs
+if not exist libs mkdir libs
 copy "%UNITYLIBS%\*.*" libs
 call ant "-Djava.compilerargs=-Xlint:deprecation" release
 if errorlevel 1 goto error
