@@ -3,3 +3,5 @@ gen
 local.properties
 obj
 proguard.cfg
+.gradle
+gradle_build
