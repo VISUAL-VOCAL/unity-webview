@@ -2,7 +2,7 @@ rem @echo off
 setlocal
 
 rem update these as appropriate
-set ANDROID_SDK=C:\Apps\android-sdk
+set ANDROID_SDK=C:\Apps\android\sdk
 set ANT_HOME=c:\apps\apache-ant-1.10.1
 set UNITY_HOME=C:\Program Files\Unity
 set JDK_HOME=C:\Program Files\Java\jdk1.8.0_131
