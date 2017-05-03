@@ -252,7 +252,7 @@ public class CWebViewPlugin {
                     // android:windowSoftInputMode="adjustResize" in AndroidManifest.xml doesn't seem to work for Unity apps.
                     // Perhaps because Unity apps run fullscreen: https://code.google.com/p/android/issues/detail?id=5497
                     // Work around this by forcing the layout to update here.
-                    if (softInputAdjustResize)
+                    if (softInputAdjustResize && mWebView != null)
                     {
                         FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) mWebView.getLayoutParams();
                         layoutParams.height = newUsableHeight;
