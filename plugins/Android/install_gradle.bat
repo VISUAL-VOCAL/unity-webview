@@ -3,7 +3,7 @@ setlocal
 
 rem Update these for your environment
 set JAVA_HOME=%ProgramFiles%\Java\jdk1.8.0_131
-set VV_REPO_ROOT=v:\git\VV\Unity3D-Alpha-2
+set VV_REPO_ROOT=v:\git\VV\Unity-Collaborate-2
 path=%path%;%JAVA_HOME%\bin
 
 if exist bin rmdir /s /q bin
