@@ -1,14 +1,7 @@
 apply plugin: 'com.android.library'
 
-repositories {
-    flatDir {
-        dirs 'libs'
-    }
-}
-
 dependencies {
     provided files('./libs/classes.jar')
-    compile(name:'unityvractivity', ext:'aar')
 }
 
 android {
