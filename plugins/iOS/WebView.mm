@@ -123,16 +123,23 @@ extern "C" void UnitySendMessage(const char *, const char *, const char *);
     NSString *gameObjectName;
     NSMutableDictionary *customRequestHeader;
 }
-
+- (void)dispose;
++ (void)clearCookies;
 @end
 
 @implementation CWebViewPlugin
 
 
-- (id)initWithGameObjectName:(const char *)gameObjectName_ transparent:(BOOL)transparent enableWKWebView:(BOOL)enableWKWebView
+- (id)initWithGameObjectName:(const char *)gameObjectName_ transparent:(BOOL)transparent ua:(const char *)ua enableWKWebView:(BOOL)enableWKWebView
 {
     self = [super init];
 
+    gameObjectName = [NSString stringWithUTF8String:gameObjectName_];
+    customRequestHeader = [[NSMutableDictionary alloc] init];
+    if (ua != NULL && strcmp(ua, "") != 0) {
+        [[NSUserDefaults standardUserDefaults]
+            registerDefaults:@{ @"UserAgent": [[NSString alloc] initWithUTF8String:ua] }];
+    }
     UIView *view = UnityGetGLViewController().view;
     if (enableWKWebView && [WKWebView class]) {
         WKWebViewConfiguration *configuration = [[WKWebViewConfiguration alloc] init];
@@ -152,32 +159,37 @@ extern "C" void UnitySendMessage(const char *, const char *, const char *);
     }
     webView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     webView.hidden = YES;
-    customRequestHeader = [[NSMutableDictionary alloc] init];
     
     [webView addObserver:self forKeyPath: @"loading" options: NSKeyValueObservingOptionNew context:nil];
     
     [view addSubview:webView];
-    gameObjectName = [NSString stringWithUTF8String:gameObjectName_];
     
     return self;
 }
 
-- (void)dealloc
+- (void)dispose
 {
-    if ([webView isKindOfClass:[WKWebView class]]) {
-        webView.UIDelegate = nil;
-        webView.navigationDelegate = nil;
-    } else {
-        webView.delegate = nil;
-    }
-    [webView stopLoading];
-    [webView removeFromSuperview];
-    
-    [webView removeObserver:self forKeyPath:@"loading"];
-    
+    UIView <WebViewProtocol> *webView0 = webView;
     webView = nil;
-    gameObjectName = nil;
+    if ([webView0 isKindOfClass:[WKWebView class]]) {
+        webView0.UIDelegate = nil;
+        webView0.navigationDelegate = nil;
+    } else {
+        webView0.delegate = nil;
+    }
+    [webView0 stopLoading];
+    [webView0 removeFromSuperview];
+    [webView0 removeObserver:self forKeyPath:@"loading"];
     customRequestHeader = nil;
+    gameObjectName = nil;
+}
+
++(void)clearCookies
+{
+    NSHTTPCookieStorage *cookieStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+    [[cookieStorage cookies] enumerateObjectsUsingBlock:^(NSHTTPCookie *cookie, NSUInteger idx, BOOL *stop) {
+        [cookieStorage deleteCookie:cookie];
+    }];
 }
 
 - (void)userContentController:(WKUserContentController *)userContentController
@@ -206,7 +218,8 @@ extern "C" void UnitySendMessage(const char *, const char *, const char *);
     if (webView == nil)
         return;
     
-    if ([keyPath isEqualToString:@"loading"] && [[change objectForKey:NSKeyValueChangeNewKey] intValue] == 0) {
+    if ([keyPath isEqualToString:@"loading"] && [[change objectForKey:NSKeyValueChangeNewKey] intValue] == 0
+        && [webView URL] != nil) {
         UnitySendMessage(
                          [gameObjectName UTF8String],
                          "CallOnLoaded",
@@ -220,11 +233,22 @@ extern "C" void UnitySendMessage(const char *, const char *, const char *);
     UnitySendMessage([gameObjectName UTF8String], "CallOnError", [[error description] UTF8String]);
 }
 
+- (void)webView:(WKWebView *)webView didFailProvisionalNavigation:(WKNavigation *)navigation withError:(NSError *)error
+{
+    UnitySendMessage([gameObjectName UTF8String], "CallOnError", [[error description] UTF8String]);
+}
+
+- (void)webView:(WKWebView *)webView didFailNavigation:(WKNavigation *)navigation withError:(NSError *)error
+{
+    UnitySendMessage([gameObjectName UTF8String], "CallOnError", [[error description] UTF8String]);
+}
+
 - (void)webViewDidFinishLoad:(UIWebView *)uiWebView {
     if (webView == nil)
         return;
     // cf. http://stackoverflow.com/questions/10996028/uiwebview-when-did-a-page-really-finish-loading/15916853#15916853
-    if ([[uiWebView stringByEvaluatingJavaScriptFromString:@"document.readyState"] isEqualToString:@"complete"]) {
+    if ([[uiWebView stringByEvaluatingJavaScriptFromString:@"document.readyState"] isEqualToString:@"complete"]
+        && [webView URL] != nil) {
         UnitySendMessage(
             [gameObjectName UTF8String],
             "CallOnLoaded",
@@ -260,14 +284,17 @@ extern "C" void UnitySendMessage(const char *, const char *, const char *);
     if ([url.absoluteString rangeOfString:@"//itunes.apple.com/"].location != NSNotFound) {
         [[UIApplication sharedApplication] openURL:url];
         decisionHandler(WKNavigationActionPolicyCancel);
+        return;
     } else if ([url.absoluteString hasPrefix:@"unity:"]) {
         UnitySendMessage([gameObjectName UTF8String], "CallFromJS", [[url.absoluteString substringFromIndex:6] UTF8String]);
         decisionHandler(WKNavigationActionPolicyCancel);
+        return;
     } else if (navigationAction.navigationType == WKNavigationTypeLinkActivated
                && (!navigationAction.targetFrame || !navigationAction.targetFrame.isMainFrame)) {
         // cf. for target="_blank", cf. http://qiita.com/ShingoFukuyama/items/b3a1441025a36ab7659c
         [webView load:navigationAction.request];
         decisionHandler(WKNavigationActionPolicyCancel);
+        return;
     } else {
         if (navigationAction.targetFrame != nil && navigationAction.targetFrame.isMainFrame) {
             // If the custom header is not attached, give it and make a request again.
@@ -441,7 +468,7 @@ extern "C" void UnitySendMessage(const char *, const char *, const char *);
 @end
 
 extern "C" {
-    void *_CWebViewPlugin_Init(const char *gameObjectName, BOOL transparent, BOOL enableWKWebView);
+    void *_CWebViewPlugin_Init(const char *gameObjectName, BOOL transparent, const char *ua, BOOL enableWKWebView);
     void _CWebViewPlugin_Destroy(void *instance);
     void _CWebViewPlugin_SetFrame(void* instace, int x, int y, int width, int height);
     void _CWebViewPlugin_SetMargins(
@@ -457,18 +484,20 @@ extern "C" {
     void _CWebViewPlugin_AddCustomHeader(void *instance, const char *headerKey, const char *headerValue);
     void _CWebViewPlugin_RemoveCustomHeader(void *instance, const char *headerKey);
     void _CWebViewPlugin_ClearCustomHeader(void *instance);
+    void _CWebViewPlugin_ClearCookies();
     const char *_CWebViewPlugin_GetCustomHeaderValue(void *instance, const char *headerKey);
 }
 
-void *_CWebViewPlugin_Init(const char *gameObjectName, BOOL transparent, BOOL enableWKWebView)
+void *_CWebViewPlugin_Init(const char *gameObjectName, BOOL transparent, const char *ua, BOOL enableWKWebView)
 {
-    id instance = [[CWebViewPlugin alloc] initWithGameObjectName:gameObjectName transparent:transparent enableWKWebView:enableWKWebView];
+    id instance = [[CWebViewPlugin alloc] initWithGameObjectName:gameObjectName transparent:transparent ua:ua enableWKWebView:enableWKWebView];
     return (__bridge_retained void *)instance;
 }
 
 void _CWebViewPlugin_Destroy(void *instance)
 {
     CWebViewPlugin *webViewPlugin = (__bridge_transfer CWebViewPlugin *)instance;
+    [webViewPlugin dispose];
     webViewPlugin = nil;
 }
 
@@ -556,6 +585,11 @@ void _CWebViewPlugin_ClearCustomHeader(void *instance)
 {
     CWebViewPlugin *webViewPlugin = (__bridge CWebViewPlugin *)instance;
     [webViewPlugin clearCustomRequestHeader];
+}
+
+void _CWebViewPlugin_ClearCookies()
+{
+    [CWebViewPlugin clearCookies];
 }
 
 const char *_CWebViewPlugin_GetCustomHeaderValue(void *instance, const char *headerKey)

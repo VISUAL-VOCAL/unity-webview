@@ -38,6 +38,8 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.CookieManager;
+import android.webkit.CookieSyncManager;
 import android.widget.FrameLayout;
 
 import java.net.HttpURLConnection;
@@ -87,7 +89,7 @@ public class CWebViewPlugin {
         return mWebView != null;
     }
 
-    public void Init(final String gameObject, final boolean transparent, final boolean softInputAdjustResize) {
+    public void Init(final String gameObject, final boolean transparent, final String ua, final boolean softInputAdjustResize) {
         final CWebViewPlugin self = this;
         final Activity a = UnityPlayer.currentActivity;
         a.runOnUiThread(new Runnable() {public void run() {
@@ -154,7 +156,7 @@ public class CWebViewPlugin {
                         urlCon.connect();
 
                         return new WebResourceResponse(
-                            urlCon.getContentType(),
+                            urlCon.getContentType().split(";", 2)[0],
                             urlCon.getContentEncoding(),
                             urlCon.getInputStream()
                         );
@@ -185,7 +187,12 @@ public class CWebViewPlugin {
             webView.addJavascriptInterface(mWebViewPlugin , "Unity");
 
             WebSettings webSettings = webView.getSettings();
-            webSettings.setSupportZoom(false);
+            if (ua != null && ua.length() > 0) {
+                webSettings.setUserAgentString(ua);
+            }
+            webSettings.setSupportZoom(true);
+            webSettings.setBuiltInZoomControls(true);
+            webSettings.setDisplayZoomControls(false);
             webSettings.setJavaScriptEnabled(true);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
                 // Log.i("CWebViewPlugin", "Build.VERSION.SDK_INT = " + Build.VERSION.SDK_INT);
@@ -403,4 +410,23 @@ public class CWebViewPlugin {
 
         this.mCustomHeaders.clear();
     }
+
+    public void ClearCookies()
+    {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) 
+        {
+           CookieManager.getInstance().removeAllCookies(null);
+           CookieManager.getInstance().flush();
+        } else {
+           final Activity a = UnityPlayer.currentActivity;
+           CookieSyncManager cookieSyncManager = CookieSyncManager.createInstance(a);
+           cookieSyncManager.startSync();
+           CookieManager cookieManager = CookieManager.getInstance();
+           cookieManager.removeAllCookie();
+           cookieManager.removeSessionCookie();
+           cookieSyncManager.stopSync();
+           cookieSyncManager.sync();
+        }
+    }
+
 }

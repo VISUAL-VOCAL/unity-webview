@@ -122,7 +122,6 @@ static void UnitySendMessage(
     NSWindowController *windowController;
     WKWebView *webView;
     NSString *gameObject;
-    NSString *ua;
     NSBitmapImageRep *bitmap;
     int textureId;
     BOOL needsDisplay;
@@ -132,7 +131,7 @@ static void UnitySendMessage(
 
 @implementation CWebViewPlugin
 
-- (id)initWithGameObject:(const char *)gameObject_ transparent:(BOOL)transparent width:(int)width height:(int)height ua:(const char *)ua_
+- (id)initWithGameObject:(const char *)gameObject_ transparent:(BOOL)transparent width:(int)width height:(int)height ua:(const char *)ua
 {
     self = [super init];
     monoMethod = 0;
@@ -162,9 +161,8 @@ static void UnitySendMessage(
     webView.UIDelegate = self;
     webView.navigationDelegate = self;
     gameObject = [[NSString stringWithUTF8String:gameObject_] retain];
-    if (ua_ != NULL && strcmp(ua_, "") != 0) {
-        ua = [[NSString stringWithUTF8String:ua_] retain];
-        [webView setCustomUserAgent:ua];
+    if (ua != NULL && strcmp(ua, "") != 0) {
+        [webView setCustomUserAgent:[NSString stringWithUTF8String:ua]];
     }
 
     window = [[[NSWindow alloc] initWithContentRect:frame
@@ -193,10 +191,6 @@ static void UnitySendMessage(
         if (gameObject != nil) {
             [gameObject release];
             gameObject = nil;
-        }
-        if (ua != nil) {
-            [ua release];
-            ua = nil;
         }
         if (bitmap != nil) {
             [bitmap release];
@@ -402,7 +396,7 @@ static void UnitySendMessage(
     [webView goForward];
 }
 
-- (void)update:(int)x y:(int)y deltaY:(float)deltaY buttonDown:(BOOL)buttonDown buttonPress:(BOOL)buttonPress buttonRelease:(BOOL)buttonRelease keyPress:(BOOL)keyPress keyCode:(unsigned short)keyCode keyChars:(const char*)keyChars
+- (void)update:(int)x y:(int)y deltaY:(float)deltaY buttonDown:(BOOL)buttonDown buttonPress:(BOOL)buttonPress buttonRelease:(BOOL)buttonRelease keyPress:(BOOL)keyPress keyCode:(unsigned short)keyCode keyChars:(const char*)keyChars refreshBitmap:(BOOL)refreshBitmap
 {
     if (webView == nil)
         return;
@@ -455,11 +449,14 @@ static void UnitySendMessage(
     }
 
     @synchronized(self) {
-        if (bitmap == nil)
-            bitmap = [[webView bitmapImageRepForCachingDisplayInRect:webView.frame] retain];
-        memset([bitmap bitmapData], 0, [bitmap bytesPerRow] * [bitmap pixelsHigh]);
-        [webView cacheDisplayInRect:webView.frame toBitmapImageRep:bitmap];
-        needsDisplay = YES; // TODO (bitmap == nil || [view needsDisplay]);
+        if (refreshBitmap) {
+            if (bitmap == nil) {
+                bitmap = [[webView bitmapImageRepForCachingDisplayInRect:webView.frame] retain];
+            }
+            memset([bitmap bitmapData], 0, [bitmap bytesPerRow] * [bitmap pixelsHigh]);
+            [webView cacheDisplayInRect:webView.frame toBitmapImageRep:bitmap];
+        }
+        needsDisplay = refreshBitmap;
     }
 }
 
@@ -576,7 +573,7 @@ void _CWebViewPlugin_GoBack(void *instance);
 void _CWebViewPlugin_GoForward(void *instance);
 void _CWebViewPlugin_Update(void *instance, int x, int y, float deltaY,
     BOOL buttonDown, BOOL buttonPress, BOOL buttonRelease,
-    BOOL keyPress, unsigned char keyCode, const char *keyChars);
+    BOOL keyPress, unsigned char keyCode, const char *keyChars, BOOL refreshBitmap);
 int _CWebViewPlugin_BitmapWidth(void *instance);
 int _CWebViewPlugin_BitmapHeight(void *instance);
 void _CWebViewPlugin_SetTextureId(void *instance, int textureId);
@@ -675,13 +672,13 @@ void _CWebViewPlugin_GoForward(void *instance)
 }
 
 void _CWebViewPlugin_Update(void *instance, int x, int y, float deltaY,
-    BOOL buttonDown, BOOL buttonPress, BOOL buttonRelease, BOOL keyPress,
-    unsigned char keyCode, const char *keyChars)
+    BOOL buttonDown, BOOL buttonPress, BOOL buttonRelease,
+    BOOL keyPress, unsigned char keyCode, const char *keyChars, BOOL refreshBitmap)
 {
     CWebViewPlugin *webViewPlugin = (CWebViewPlugin *)instance;
     [webViewPlugin update:x y:y deltaY:deltaY buttonDown:buttonDown
         buttonPress:buttonPress buttonRelease:buttonRelease keyPress:keyPress
-        keyCode:keyCode keyChars:keyChars];
+        keyCode:keyCode keyChars:keyChars refreshBitmap:refreshBitmap];
 }
 
 int _CWebViewPlugin_BitmapWidth(void *instance)

@@ -124,7 +124,8 @@ public class WebViewObject : MonoBehaviour
     [DllImport("WebViewSeparated")]
     private static extern void _CWebViewPlugin_Update(IntPtr instance,
         int x, int y, float deltaY, bool down, bool press, bool release,
-        bool keyPress, short keyCode, string keyChars);
+        bool keyPress, short keyCode, string keyChars,
+        bool refreshBitmap);
     [DllImport("WebViewSeparated")]
     private static extern int _CWebViewPlugin_BitmapWidth(IntPtr instance);
     [DllImport("WebViewSeparated")]
@@ -181,7 +182,8 @@ public class WebViewObject : MonoBehaviour
     [DllImport("WebView")]
     private static extern void _CWebViewPlugin_Update(IntPtr instance,
         int x, int y, float deltaY, bool down, bool press, bool release,
-        bool keyPress, short keyCode, string keyChars);
+        bool keyPress, short keyCode, string keyChars,
+        bool refreshBitmap);
     [DllImport("WebView")]
     private static extern int _CWebViewPlugin_BitmapWidth(IntPtr instance);
     [DllImport("WebView")]
@@ -203,7 +205,7 @@ public class WebViewObject : MonoBehaviour
 #endif
 #elif UNITY_IPHONE
     [DllImport("__Internal")]
-    private static extern IntPtr _CWebViewPlugin_Init(string gameObject, bool transparent, bool enableWKWebView);
+    private static extern IntPtr _CWebViewPlugin_Init(string gameObject, bool transparent, string ua, bool enableWKWebView);
     [DllImport("__Internal")]
     private static extern int _CWebViewPlugin_Destroy(IntPtr instance);
     [DllImport("__Internal")]
@@ -244,9 +246,11 @@ public class WebViewObject : MonoBehaviour
     private static extern void   _CWebViewPlugin_RemoveCustomHeader(IntPtr instance, string headerKey);
     [DllImport("__Internal")]
     private static extern void   _CWebViewPlugin_ClearCustomHeader(IntPtr instance);
+    [DllImport("__Internal")]
+    private static extern void   _CWebViewPlugin_ClearCookies();
 #endif
 
-    public void Init(Callback cb = null, bool transparent = false, string ua = @"Mozilla/5.0 (iPhone; CPU iPhone OS 7_1_2 like Mac OS X) AppleWebKit/537.51.2 (KHTML, like Gecko) Version/7.0 Mobile/11D257 Safari/9537.53", Callback err = null, Callback ld = null, bool enableWKWebView = false, bool softInputAdjustResize = false)
+    public void Init(Callback cb = null, bool transparent = false, string ua = "", Callback err = null, Callback ld = null, bool enableWKWebView = false, bool softInputAdjustResize = false)
     {
         onJS = cb;
         onError = err;
@@ -262,6 +266,11 @@ public class WebViewObject : MonoBehaviour
                 Debug.LogWarning("<color=yellow>WebViewObject: NSAppTransportSecurity isn't configured to allow HTTP. If you need to allow any HTTP access, please shutdown Unity and invoke:</color>\n/usr/libexec/PlistBuddy -c \"Add NSAppTransportSecurity:NSAllowsArbitraryLoads bool true\" /Applications/Unity/Unity.app/Contents/Info.plist");
             }
         }
+#if UNITY_EDITOR_OSX
+        // if (string.IsNullOrEmpty(ua)) {
+        //     ua = @"Mozilla/5.0 (iPhone; CPU iPhone OS 7_1_2 like Mac OS X) AppleWebKit/537.51.2 (KHTML, like Gecko) Version/7.0 Mobile/11D257 Safari/9537.53";
+        // }
+#endif
         webView = _CWebViewPlugin_Init(
             name,
             transparent,
@@ -284,10 +293,10 @@ public class WebViewObject : MonoBehaviour
         rect = new Rect(0, 0, Screen.width, Screen.height);
         OnApplicationFocus(true);
 #elif UNITY_IPHONE
-        webView = _CWebViewPlugin_Init(name, transparent, enableWKWebView);
+        webView = _CWebViewPlugin_Init(name, transparent, ua, enableWKWebView);
 #elif UNITY_ANDROID
         webView = new AndroidJavaObject("net.gree.unitywebview.CWebViewPlugin");
-        webView.Call("Init", name, transparent, softInputAdjustResize);
+        webView.Call("Init", name, transparent, ua, softInputAdjustResize);
 #else
         Debug.LogError("Webview is not supported on this platform.");
 #endif
@@ -574,6 +583,20 @@ public class WebViewObject : MonoBehaviour
 #endif
     }
 
+    public void ClearCookies()
+    {
+#if UNITY_IPHONE && !UNITY_EDITOR
+        if (webView == IntPtr.Zero)
+            return;
+
+        _CWebViewPlugin_ClearCookies();
+#elif UNITY_ANDROID && !UNITY_EDITOR
+        if (webView == null)
+            return;
+        webView.Call("ClearCookies");
+#endif
+    }
+
 
 #if UNITY_WEBPLAYER
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
@@ -588,6 +611,8 @@ public class WebViewObject : MonoBehaviour
             inputString += Input.inputString;
         }
     }
+
+    public int bitmapRefreshCycle = 1;
 
     void OnGUI()
     {
@@ -608,30 +633,39 @@ public class WebViewObject : MonoBehaviour
             keyCode = (short)inputString[0];
             inputString = inputString.Substring(1);
         }
+        bool refreshBitmap = (Time.frameCount % bitmapRefreshCycle == 0);
         _CWebViewPlugin_Update(webView,
             (int)(pos.x - rect.x), (int)(pos.y - rect.y), deltaY,
-            down, press, release, keyPress, keyCode, keyChars);
-        {
-            var w = _CWebViewPlugin_BitmapWidth(webView);
-            var h = _CWebViewPlugin_BitmapHeight(webView);
-            if (texture == null || texture.width != w || texture.height != h) {
-                texture = new Texture2D(w, h, TextureFormat.RGBA32, false, true);
-                texture.filterMode = FilterMode.Bilinear;
-                texture.wrapMode = TextureWrapMode.Clamp;
+            down, press, release, keyPress, keyCode, keyChars,
+            refreshBitmap);
+        if (refreshBitmap) {
+            {
+                var w = _CWebViewPlugin_BitmapWidth(webView);
+                var h = _CWebViewPlugin_BitmapHeight(webView);
+                if (texture == null || texture.width != w || texture.height != h) {
+                    texture = new Texture2D(w, h, TextureFormat.RGBA32, false, true);
+                    texture.filterMode = FilterMode.Bilinear;
+                    texture.wrapMode = TextureWrapMode.Clamp;
+                }
             }
-        }
-        _CWebViewPlugin_SetTextureId(webView, (int)texture.GetNativeTexturePtr());
-        _CWebViewPlugin_SetCurrentInstance(webView);
+            _CWebViewPlugin_SetTextureId(webView, (int)texture.GetNativeTexturePtr());
+            _CWebViewPlugin_SetCurrentInstance(webView);
 #if UNITY_4_6 || UNITY_5_0 || UNITY_5_1
-        GL.IssuePluginEvent(-1);
+            GL.IssuePluginEvent(-1);
 #else
-        GL.IssuePluginEvent(GetRenderEventFunc(), -1);
+            GL.IssuePluginEvent(GetRenderEventFunc(), -1);
 #endif
-        Matrix4x4 m = GUI.matrix;
-        GUI.matrix = Matrix4x4.TRS(new Vector3(0, Screen.height, 0),
-            Quaternion.identity, new Vector3(1, -1, 1));
-        GUI.DrawTexture(rect, texture);
-        GUI.matrix = m;
+        }
+        if (texture != null) {
+            Matrix4x4 m = GUI.matrix;
+            GUI.matrix
+                = Matrix4x4.TRS(
+                    new Vector3(0, Screen.height, 0),
+                    Quaternion.identity,
+                    new Vector3(1, -1, 1));
+            GUI.DrawTexture(rect, texture);
+            GUI.matrix = m;
+        }
     }
 #endif
 }
