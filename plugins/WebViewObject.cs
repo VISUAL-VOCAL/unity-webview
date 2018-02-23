@@ -60,12 +60,16 @@ public class WebViewObject : MonoBehaviour
 #elif UNITY_ANDROID
     AndroidJavaObject webView;
     
+#if !UNITY_EDITOR && UNITY_ANDROID
     bool mIsKeyboardVisible = false;
-    
+#endif
+
     /// Called from Java native plugin to set when the keyboard is opened
     public void SetKeyboardVisible(string pIsVisible)
     {
+#if !UNITY_EDITOR && UNITY_ANDROID
         mIsKeyboardVisible = (pIsVisible == "true");
+#endif
     }
 #else
     IntPtr webView;
