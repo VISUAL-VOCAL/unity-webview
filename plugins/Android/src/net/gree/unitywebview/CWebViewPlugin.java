@@ -24,6 +24,7 @@ package net.gree.unitywebview;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.net.Uri;
@@ -237,6 +238,22 @@ public class CWebViewPlugin {
             webSettings.setDomStorageEnabled(true);
             String databasePath = webView.getContext().getDir("databases", Context.MODE_PRIVATE).getPath();
             webSettings.setDatabasePath(databasePath);
+
+            // enable third-party cookies (needed by Auth0)
+            {
+                CookieManager cookieManager = CookieManager.getInstance();
+                cookieManager.setAcceptCookie(true);
+                cookieManager.setAcceptThirdPartyCookies(webView, true);
+            }
+
+            // enable debugging
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
+            {
+                if (0 != (a.getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE))
+                {
+                    WebView.setWebContentsDebuggingEnabled(true); 
+                }
+            }
 
             if (transparent) {
                 webView.setBackgroundColor(0x00000000);
