@@ -2,9 +2,8 @@
 setlocal
 
 rem Update these for your environment
-set JAVA_HOME=%ProgramFiles%\Java\jdk1.8.0_131
-set VV_REPO_ROOT=v:\git\VV\Unity-Collaborate-2
-set UNITY_HOME=c:\apps\Unity\2017.1.0p1
+set JAVA_HOME=c:\apps\java\jdk1.8.0_152
+set UNITY_HOME=c:\apps\Unity\2017.2.2f1
 
 path=%path%;%JAVA_HOME%\bin
 
