@@ -152,6 +152,13 @@ extern "C" void UnitySendMessage(const char *, const char *, const char *);
     } else {
         webView = [[UIWebView alloc] initWithFrame:view.frame];
         webView.delegate = self;
+
+        // enable third-party cookies for Auth0 (only works with UIWebView)
+        NSHTTPCookieStorage *cookieStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+        if (cookieStorage.cookieAcceptPolicy != NSHTTPCookieAcceptPolicyAlways) {
+            NSLog(@"default cookie accept policy was %lu", (unsigned long)cookieStorage.cookieAcceptPolicy );
+            cookieStorage.cookieAcceptPolicy = NSHTTPCookieAcceptPolicyAlways;
+        }
     }
     if (transparent) {
         webView.opaque = NO;
