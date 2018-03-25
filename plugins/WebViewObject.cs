@@ -114,6 +114,9 @@ public class WebViewObject : MonoBehaviour
     private static extern void _CWebViewPlugin_EvaluateJS(
         IntPtr instance, string url);
     [DllImport("WebViewSeparated")]
+    private static extern int _CWebViewPlugin_Progress(
+        IntPtr instance);
+    [DllImport("WebViewSeparated")]
     private static extern bool _CWebViewPlugin_CanGoBack(
         IntPtr instance);
     [DllImport("WebViewSeparated")]
@@ -172,6 +175,9 @@ public class WebViewObject : MonoBehaviour
     private static extern void _CWebViewPlugin_EvaluateJS(
         IntPtr instance, string url);
     [DllImport("WebView")]
+    private static extern int _CWebViewPlugin_Progress(
+        IntPtr instance);
+    [DllImport("WebView")]
     private static extern bool _CWebViewPlugin_CanGoBack(
         IntPtr instance);
     [DllImport("WebView")]
@@ -228,6 +234,9 @@ public class WebViewObject : MonoBehaviour
     private static extern void _CWebViewPlugin_EvaluateJS(
         IntPtr instance, string url);
     [DllImport("__Internal")]
+    private static extern int _CWebViewPlugin_Progress(
+        IntPtr instance);
+    [DllImport("__Internal")]
     private static extern bool _CWebViewPlugin_CanGoBack(
         IntPtr instance);
     [DllImport("__Internal")]
@@ -261,6 +270,9 @@ public class WebViewObject : MonoBehaviour
         onLoaded = ld;
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.init", name);
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
+        Debug.LogError("Webview is not supported on this platform.");
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         {
             var uri = new Uri(_CWebViewPlugin_GetAppPath());
@@ -310,6 +322,8 @@ public class WebViewObject : MonoBehaviour
     {
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.destroy", name);
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         if (webView == IntPtr.Zero)
             return;
@@ -332,6 +346,9 @@ public class WebViewObject : MonoBehaviour
     public void SetCenterPositionWithScale(Vector2 center, Vector2 scale)
     {
 #if UNITY_WEBPLAYER
+        //TODO: UNSUPPORTED
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         rect.x = center.x + (Screen.width - scale.x)/2;
         rect.y = center.y + (Screen.height - scale.y)/2;
@@ -347,6 +364,8 @@ public class WebViewObject : MonoBehaviour
     {
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.setMargins", name, left, top, right, bottom);
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         if (webView == IntPtr.Zero)
             return;
@@ -369,6 +388,8 @@ public class WebViewObject : MonoBehaviour
     {
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.setVisibility", name, v);
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         if (webView == IntPtr.Zero)
             return;
@@ -396,6 +417,8 @@ public class WebViewObject : MonoBehaviour
             return;
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.loadURL", name, url);
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
@@ -415,6 +438,8 @@ public class WebViewObject : MonoBehaviour
             baseUrl = "";
 #if UNITY_WEBPLAYER
         //TODO: UNSUPPORTED
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
@@ -430,6 +455,8 @@ public class WebViewObject : MonoBehaviour
     {
 #if UNITY_WEBPLAYER
         Application.ExternalCall("unityWebView.evaluateJS", name, js);
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
@@ -441,9 +468,33 @@ public class WebViewObject : MonoBehaviour
 #endif
     }
 
+    public int Progress()
+    {
+#if UNITY_WEBPLAYER
+        //TODO: UNSUPPORTED
+        return 0;
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
+        return 0;
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
+        if (webView == IntPtr.Zero)
+            return 0;
+        return _CWebViewPlugin_Progress(webView);
+#elif UNITY_ANDROID
+        if (webView == null)
+            return 0;
+        return webView.Get<int>("progress");
+#endif
+    }
+
     public bool CanGoBack()
     {
 #if UNITY_WEBPLAYER
+        //TODO: UNSUPPORTED
+        return false;
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
+        return false;
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return false;
@@ -452,14 +503,17 @@ public class WebViewObject : MonoBehaviour
         if (webView == null)
             return false;
         return webView.Get<bool>("canGoBack");
-#else
-        return false;
 #endif
     }
 
     public bool CanGoForward()
     {
 #if UNITY_WEBPLAYER
+        //TODO: UNSUPPORTED
+        return false;
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
+        return false;
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return false;
@@ -468,14 +522,15 @@ public class WebViewObject : MonoBehaviour
         if (webView == null)
             return false;
         return webView.Get<bool>("canGoForward");
-#else
-        return false;
 #endif
     }
 
     public void GoBack()
     {
 #if UNITY_WEBPLAYER
+        //TODO: UNSUPPORTED
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
@@ -490,6 +545,9 @@ public class WebViewObject : MonoBehaviour
     public void GoForward()
     {
 #if UNITY_WEBPLAYER
+        //TODO: UNSUPPORTED
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
@@ -531,7 +589,11 @@ public class WebViewObject : MonoBehaviour
 
     public void AddCustomHeader(string headerKey, string headerValue)
     {
-#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
+#if UNITY_WEBPLAYER
+        //TODO: UNSUPPORTED
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
 
@@ -545,7 +607,13 @@ public class WebViewObject : MonoBehaviour
 
     public string GetCustomHeaderValue(string headerKey)
     {
-#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
+#if UNITY_WEBPLAYER
+        //TODO: UNSUPPORTED
+        return null;
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
+        return null;
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
           return null;
         
@@ -554,14 +622,14 @@ public class WebViewObject : MonoBehaviour
         if (webView == null)
             return null;
         return webView.Call<string>("GetCustomHeaderValue", headerKey);
-#else
-        return null;
 #endif
     }
 
     public void RemoveCustomHeader(string headerKey)
     {
-#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
+#if UNITY_WEBPLAYER
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
 
@@ -575,7 +643,11 @@ public class WebViewObject : MonoBehaviour
 
     public void ClearCustomHeader()
     {
-#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
+#if UNITY_WEBPLAYER
+        //TODO: UNSUPPORTED
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IPHONE
         if (webView == IntPtr.Zero)
             return;
 
@@ -589,7 +661,11 @@ public class WebViewObject : MonoBehaviour
 
     public void ClearCookies()
     {
-#if UNITY_IPHONE && !UNITY_EDITOR
+#if UNITY_WEBPLAYER
+        //TODO: UNSUPPORTED
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        //TODO: UNSUPPORTED
+#elif UNITY_IPHONE && !UNITY_EDITOR
         if (webView == IntPtr.Zero)
             return;
 
@@ -602,8 +678,7 @@ public class WebViewObject : MonoBehaviour
     }
 
 
-#if UNITY_WEBPLAYER
-#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
+#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
     void OnApplicationFocus(bool focus)
     {
         hasFocus = focus;

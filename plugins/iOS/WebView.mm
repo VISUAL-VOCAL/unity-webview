@@ -152,6 +152,13 @@ extern "C" void UnitySendMessage(const char *, const char *, const char *);
     } else {
         webView = [[UIWebView alloc] initWithFrame:view.frame];
         webView.delegate = self;
+
+        // enable third-party cookies for Auth0 (only works with UIWebView)
+        NSHTTPCookieStorage *cookieStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+        if (cookieStorage.cookieAcceptPolicy != NSHTTPCookieAcceptPolicyAlways) {
+            NSLog(@"default cookie accept policy was %lu", (unsigned long)cookieStorage.cookieAcceptPolicy );
+            cookieStorage.cookieAcceptPolicy = NSHTTPCookieAcceptPolicyAlways;
+        }
     }
     if (transparent) {
         webView.opaque = NO;
@@ -309,6 +316,62 @@ extern "C" void UnitySendMessage(const char *, const char *, const char *);
     decisionHandler(WKNavigationActionPolicyAllow);
 }
 
+// alert
+- (void)webView:(WKWebView *)webView runJavaScriptAlertPanelWithMessage:(NSString *)message initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(void))completionHandler
+{
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@""
+                                                                             message:message
+                                                                      preferredStyle:UIAlertControllerStyleAlert];
+    [alertController addAction: [UIAlertAction actionWithTitle:@"OK"
+                                                         style:UIAlertActionStyleCancel
+                                                       handler:^(UIAlertAction *action) {
+                                                           completionHandler();
+                                                       }]];
+    [UnityGetGLViewController() presentViewController:alertController animated:YES completion:^{}];
+}
+
+// confirm
+- (void)webView:(WKWebView *)webView runJavaScriptConfirmPanelWithMessage:(NSString *)message initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(BOOL))completionHandler
+{
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@""
+                                                                             message:message
+                                                                      preferredStyle:UIAlertControllerStyleAlert];
+    [alertController addAction:[UIAlertAction actionWithTitle:@"OK"
+                                                        style:UIAlertActionStyleDefault
+                                                      handler:^(UIAlertAction *action) {
+                                                          completionHandler(YES);
+                                                      }]];
+    [alertController addAction:[UIAlertAction actionWithTitle:@"Cancel"
+                                                        style:UIAlertActionStyleCancel
+                                                      handler:^(UIAlertAction *action) {
+                                                          completionHandler(NO);
+                                                      }]];
+    [UnityGetGLViewController() presentViewController:alertController animated:YES completion:^{}];
+}
+
+// prompt
+- (void)webView:(WKWebView *)webView runJavaScriptTextInputPanelWithPrompt:(NSString *)prompt defaultText:(NSString *)defaultText initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(NSString *))completionHandler
+{
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@""
+                                                                             message:prompt
+                                                                      preferredStyle:UIAlertControllerStyleAlert];
+    [alertController addTextFieldWithConfigurationHandler:^(UITextField *textField) {
+        textField.text = defaultText;
+    }];
+    [alertController addAction:[UIAlertAction actionWithTitle:@"OK"
+                                                        style:UIAlertActionStyleDefault
+                                                      handler:^(UIAlertAction *action) {
+                                                          NSString *input = ((UITextField *)alertController.textFields.firstObject).text;
+                                                          completionHandler(input);
+                                                      }]];
+    [alertController addAction:[UIAlertAction actionWithTitle:@"Cancel"
+                                                        style:UIAlertActionStyleCancel
+                                                      handler:^(UIAlertAction *action) {
+                                                          completionHandler(nil);
+                                                      }]];
+    [UnityGetGLViewController() presentViewController:alertController animated:YES completion:^{}];
+}
+
 - (BOOL)isSetupedCustomHeader:(NSURLRequest *)targetRequest
 {
     // Check for additional custom header.
@@ -320,7 +383,6 @@ extern "C" void UnitySendMessage(const char *, const char *, const char *);
     }
     return YES;
 }
-
 
 - (NSURLRequest *)constructionCustomHeader:(NSURLRequest *)originalRequest
 {
@@ -402,6 +464,17 @@ extern "C" void UnitySendMessage(const char *, const char *, const char *);
     [webView evaluateJavaScript:jsStr completionHandler:^(NSString *result, NSError *error) {}];
 }
 
+- (int)progress
+{
+    if (webView == nil)
+        return 0;
+    if ([webView isKindOfClass:[WKWebView class]]) {
+        return (int)([(WKWebView *)webView estimatedProgress] * 100);
+    } else {
+        return 0;
+    }
+}
+
 - (BOOL)canGoBack
 {
     if (webView == nil)
@@ -477,6 +550,7 @@ extern "C" {
     void _CWebViewPlugin_LoadURL(void *instance, const char *url);
     void _CWebViewPlugin_LoadHTML(void *instance, const char *html, const char *baseUrl);
     void _CWebViewPlugin_EvaluateJS(void *instance, const char *url);
+    int _CWebViewPlugin_Progress(void *instance);
     BOOL _CWebViewPlugin_CanGoBack(void *instance);
     BOOL _CWebViewPlugin_CanGoForward(void *instance);
     void _CWebViewPlugin_GoBack(void *instance);
@@ -545,6 +619,12 @@ void _CWebViewPlugin_EvaluateJS(void *instance, const char *js)
     [webViewPlugin evaluateJS:js];
 }
 
+int _CWebViewPlugin_Progress(void *instance)
+{
+    CWebViewPlugin *webViewPlugin = (__bridge CWebViewPlugin *)instance;
+    return [webViewPlugin progress];
+}
+
 BOOL _CWebViewPlugin_CanGoBack(void *instance)
 {
     CWebViewPlugin *webViewPlugin = (__bridge CWebViewPlugin *)instance;
@@ -597,5 +677,3 @@ const char *_CWebViewPlugin_GetCustomHeaderValue(void *instance, const char *hea
     CWebViewPlugin *webViewPlugin = (__bridge CWebViewPlugin *)instance;
     return [webViewPlugin getCustomRequestHeaderValue:headerKey];
 }
-
-

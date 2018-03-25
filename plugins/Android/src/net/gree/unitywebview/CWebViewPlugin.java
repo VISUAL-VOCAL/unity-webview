@@ -24,6 +24,7 @@ package net.gree.unitywebview;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.net.Uri;
@@ -77,9 +78,11 @@ public class CWebViewPlugin {
     private static FrameLayout layout = null;
     private WebView mWebView;
     private CWebViewPluginInterface mWebViewPlugin;
+    private int progress;
     private boolean canGoBack;
     private boolean canGoForward;
     private Hashtable<String, String> mCustomHeaders;
+    private String mWebViewUA;
     private int oldUsableHeight = -1;
 
     public CWebViewPlugin() {
@@ -109,7 +112,34 @@ public class CWebViewPlugin {
             //         return true;
             //     }
             // });
-            webView.setWebChromeClient(new WebChromeClient());
+            webView.setWebChromeClient(new WebChromeClient() {
+                View videoView;
+
+                @Override
+                public void onProgressChanged(WebView view, int newProgress) {
+                    progress = newProgress;
+                }
+
+                @Override
+                public void onShowCustomView(View view, CustomViewCallback callback) {
+                    super.onShowCustomView(view, callback);
+                    if (layout != null) {
+                        videoView = view;
+                        layout.setBackgroundColor(0xff000000);
+                        layout.addView(videoView);
+                    }
+                }
+
+                @Override
+                public void onHideCustomView() {
+                    super.onHideCustomView();
+                    if (layout != null) {
+                        layout.removeView(videoView);
+                        layout.setBackgroundColor(0x00000000);
+                        videoView = null;
+                    }
+                }
+            });
 
             mWebViewPlugin = new CWebViewPluginInterface(self, gameObject);
             webView.setWebViewClient(new WebViewClient() {
@@ -148,6 +178,9 @@ public class CWebViewPlugin {
 
                     try {
                         HttpURLConnection urlCon = (HttpURLConnection) (new URL(url)).openConnection();
+                        // The following should make HttpURLConnection have a same user-agent of webView)
+                        // cf. http://d.hatena.ne.jp/faw/20070903/1188796959 (in Japanese)
+                        urlCon.setRequestProperty("User-Agent", mWebViewUA);
 
                         for (HashMap.Entry<String, String> entry: mCustomHeaders.entrySet()) {
                             urlCon.setRequestProperty(entry.getKey(), entry.getValue());
@@ -190,9 +223,12 @@ public class CWebViewPlugin {
             if (ua != null && ua.length() > 0) {
                 webSettings.setUserAgentString(ua);
             }
+            mWebViewUA = webSettings.getUserAgentString();
             webSettings.setSupportZoom(true);
             webSettings.setBuiltInZoomControls(true);
             webSettings.setDisplayZoomControls(false);
+            webSettings.setLoadWithOverviewMode(true);
+            webSettings.setUseWideViewPort(true);
             webSettings.setJavaScriptEnabled(true);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
                 // Log.i("CWebViewPlugin", "Build.VERSION.SDK_INT = " + Build.VERSION.SDK_INT);
@@ -202,6 +238,22 @@ public class CWebViewPlugin {
             webSettings.setDomStorageEnabled(true);
             String databasePath = webView.getContext().getDir("databases", Context.MODE_PRIVATE).getPath();
             webSettings.setDatabasePath(databasePath);
+
+            // enable third-party cookies (needed by Auth0)
+            {
+                CookieManager cookieManager = CookieManager.getInstance();
+                cookieManager.setAcceptCookie(true);
+                cookieManager.setAcceptThirdPartyCookies(webView, true);
+            }
+
+            // enable debugging
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
+            {
+                if (0 != (a.getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE))
+                {
+                    WebView.setWebContentsDebuggingEnabled(true); 
+                }
+            }
 
             if (transparent) {
                 webView.setBackgroundColor(0x00000000);
