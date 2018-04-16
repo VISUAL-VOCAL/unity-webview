@@ -240,6 +240,8 @@ public class CWebViewPlugin {
             webSettings.setDatabasePath(databasePath);
 
             // enable third-party cookies (needed by Auth0)
+            // API versions prior to LOLLIPOP default to allowing third-party cookies.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
             {
                 CookieManager cookieManager = CookieManager.getInstance();
                 cookieManager.setAcceptCookie(true);
